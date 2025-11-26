@@ -56,7 +56,7 @@ namespace SLC
     // Black: Y=16, U=128, V=128
     // White: Y=235, U=128, V=128
     
-    static void drawChar(uint8_t* dst, uint32_t width, uint32_t height, int64_t startX, int64_t startY, int charIdx, int32_t fontSize)
+    static void drawCharUYVY(uint8_t* dst, uint32_t width, uint32_t height, int64_t startX, int64_t startY, int charIdx, int32_t fontSize)
     {
         if (charIdx < 0 || charIdx > 11) return;
 
@@ -283,9 +283,19 @@ namespace SLC
         return 0;
     }
 
-    int32_t Burner::burn(const uint8_t *src, uint64_t srcSize, const BurnerTimeId& timeId, int64_t xPos, int64_t yPos)
+    int32_t Burner::burn(uint8_t *src, uint64_t srcSize, const BurnerTimeId& timeId, int64_t xPos, int64_t yPos)
     {
-        if (!src) return -1;
+        return burnCommon(src, srcSize, src, timeId, xPos, yPos);
+    }
+
+    int32_t Burner::burn(const uint8_t *src, uint64_t srcSize, uint8_t *dst, const BurnerTimeId& timeId, int64_t xPos, int64_t yPos)
+    {
+        return burnCommon(src, srcSize, dst, timeId, xPos, yPos);
+    }
+
+    int32_t Burner::burnCommon(const uint8_t *src, uint64_t srcSize, uint8_t *dst, const BurnerTimeId& timeId, int64_t xPos, int64_t yPos)
+    {
+        if (!src || !dst) return -1;
         
         uint32_t width = m_width;
         uint32_t height = m_height;
@@ -302,7 +312,9 @@ namespace SLC
 
         if (srcSize < expectedSize) return -3;
         
-        uint8_t* dst = const_cast<uint8_t*>(src);       
+        if (src != dst) {
+            memcpy(dst, src, expectedSize);
+        }
 
         // 2. Format string
         char buf[64];
@@ -330,67 +342,7 @@ namespace SLC
             if (idx != -1)
             {
                 if (m_type == SourceType::UYVY)
-                    drawChar(dst, width, height, currentX, yPos, idx, m_fontSize);
-                else if (m_type == SourceType::YUV422)
-                    drawCharYUV422(dst, width, height, currentX, yPos, idx, m_fontSize);
-                else if (m_type == SourceType::V210)
-                    drawCharV210(dst, width, height, currentX, yPos, idx, m_fontSize);
-            }
-            currentX += charWidth;
-        }
-
-        return 0;
-    }
-
-    int32_t Burner::burn(const uint8_t *src, uint64_t srcSize, uint8_t *dst, const BurnerTimeId& timeId, int64_t xPos, int64_t yPos)
-    {
-        if (!src || !dst) return -1;
-        
-        uint32_t width = m_width;
-        uint32_t height = m_height;
-        
-        if (width == 0 || height == 0) return -2; // Not initialized
-        
-        // 1. Copy src to dst
-        // Check size
-        uint64_t expectedSize = 0;
-        if (m_type == SourceType::UYVY || m_type == SourceType::YUV422) {
-             expectedSize = (uint64_t)width * height * 2;
-        } else if (m_type == SourceType::V210) {
-             expectedSize = (uint64_t)((width + 5) / 6) * 16 * height;
-        }
-
-        if (srcSize < expectedSize) return -3;
-        
-        memcpy(dst, src, expectedSize);
-
-        // 2. Format string
-        char buf[64];
-        // Format: HH:MM:SS.decimal
-        // Assuming decimal is milliseconds or similar, let's just print it as integer.
-        snprintf(buf, sizeof(buf), "%02u:%02u:%02u.%u", 
-            timeId.hour, timeId.minute, timeId.second, timeId.decimal);
-
-        // 3. Draw string
-        // Font is 8x16.
-        // We want a black box background.
-        // Let's calculate text size.
-        size_t len = strlen(buf);
-        int charWidth = m_fontSize / 2;
-        if (charWidth < 1) charWidth = 1;
-
-        // Draw background box (optional, but requested "black bottom")
-        // We can just draw the characters which draw their own background (0 bits are black).
-        // My drawChar function sets Y=16 for 0 bits, so it draws the black background for the character cell.
-        
-        int64_t currentX = xPos;
-        for (size_t i = 0; i < len; ++i)
-        {
-            int idx = getCharIndex(buf[i]);
-            if (idx != -1)
-            {
-                if (m_type == SourceType::UYVY)
-                    drawChar(dst, width, height, currentX, yPos, idx, m_fontSize);
+                    drawCharUYVY(dst, width, height, currentX, yPos, idx, m_fontSize);
                 else if (m_type == SourceType::YUV422)
                     drawCharYUV422(dst, width, height, currentX, yPos, idx, m_fontSize);
                 else if (m_type == SourceType::V210)

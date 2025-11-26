@@ -28,9 +28,11 @@ namespace SLC
 
         int32_t burn(const uint8_t *src, uint64_t srcSize, uint8_t *dst, const BurnerTimeId& timeId, int64_t xPos, int64_t yPos);
 
-        int32_t burn(const uint8_t *src, uint64_t srcSize, const BurnerTimeId& timeId, int64_t xPos, int64_t yPos);        
+        int32_t burn(uint8_t *src, uint64_t srcSize, const BurnerTimeId& timeId, int64_t xPos, int64_t yPos);        
 
     private:
+        int32_t burnCommon(const uint8_t *src, uint64_t srcSize, uint8_t *dst, const BurnerTimeId& timeId, int64_t xPos, int64_t yPos);
+
         uint32_t m_width = 0;
         uint32_t m_height = 0;
         SourceType m_type = SourceType::UYVY;
